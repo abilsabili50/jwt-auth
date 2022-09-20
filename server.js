@@ -44,6 +44,11 @@ router.post("/login", (req, res) => {
 					message: "token has been created",
 					token,
 				});
+
+				// res.header("x-access-token", token).json({
+				// 	status: "success",
+				// 	message: "token has been created",
+				// });
 			}
 		}
 	});
@@ -53,10 +58,42 @@ router.get("/", (req, res) => {
 	res.send("ini route home!");
 });
 
+// ======== Proteksi route dengan token ~ posisi route penting
+router.use((req, res, next) => {
+	// mengambil token dari header
+	const token = req.headers["x-access-token"];
+
+	if (!token)
+		return res.status(403).send({ status: "fail", message: "Forbidden" });
+
+	// verifikasi token
+	jwt.verify(token, SECRET_KEY, (err, decoded) => {
+		if (err)
+			return res.status(401).send({ status: "fail", message: "unauthorized" });
+
+		req.decoded = decoded;
+
+		if (decoded.exp <= Date.now() / 1000) {
+			return res.status(400).send({
+				status: "fail",
+				message: "token has expired",
+				date: Date.now() / 1000,
+				exp: decoded.exp,
+			});
+		}
+
+		next();
+	});
+});
+
 router.get("/users", (req, res) => {
 	User.find({}, (err, result) => {
 		res.json(result);
 	});
+});
+
+router.get("/profile", (req, res) => {
+	res.json(req.decoded._doc);
 });
 
 // ======== prefix route
